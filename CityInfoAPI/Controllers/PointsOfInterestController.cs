@@ -52,6 +52,18 @@ namespace CityInfoAPI.Controllers
             //    return BadRequest();
             //}
 
+            if(pointOfInterest.Description == pointOfInterest.Name)
+            {
+                ModelState.AddModelError("Description", "The provided description should be different from name");
+            }
+
+            //We need to explicitly do this since model binding would have already happened before we modified thew model state hence it's too late for the [ApiController] attribute to handle this
+            //To avoid this tedious way of mixing up validation and controller actions we could use a third party library such as Fluent Validation
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             //check whether the city to which the pointOfInterest is being created exists
             var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
             if (city == null)
@@ -75,6 +87,44 @@ namespace CityInfoAPI.Controllers
             //Because the "GetPointOfInterest" route expects two parameters we pass them in using an anonymous type
             //Response body should also contain the newly created pointOfInterest resource
             return CreatedAtRoute("SinglePointOfInterest", new { cityId, id = finalPointOfInterest.Id}, finalPointOfInterest);
+        }
+
+        [HttpPut("{id}")]
+        public IActionResult UpdatePointOfInterest(int cityId, int id, [FromBody] PointOfInterestForCreationDto pointOfInterest)
+        {
+            if (pointOfInterest.Description == pointOfInterest.Name)
+            {
+                ModelState.AddModelError("Description", "The provided description should be different from name");
+            }
+
+            //We need to explicitly do this since model binding would have already happened before we modified thew model state hence it's too late for the [ApiController] attribute to handle this
+            //To avoid repeating this check we could use a third party library such as Fluent Validation
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            //check whether the city to which the pointOfInterest is being created exists
+            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
+            if (city == null)
+            {
+                return NotFound();
+            }
+
+            //calculate pointOfInterestDto
+            //since our data store currently works on a PointOfInterestDto and not PointOfInterestForCreationDto we have to apply mapping
+            var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id == id);
+            if (pointOfInterestFromStore == null)
+            {
+                return NotFound();
+            }
+
+            //According to Http standards Put should fully update a resource
+            //We already have the id coming from the Api. If we didn't and we didn't provide it it would fall back to the default value
+            pointOfInterestFromStore.Name = pointOfInterest.Name;
+            pointOfInterestFromStore.Description = pointOfInterest.Description;
+
+            return NoContent();
         }
     }
 }
