@@ -1,9 +1,11 @@
 ﻿using CityInfoAPI.Models;
+using CityInfoAPI.Services;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,15 +16,18 @@ namespace CityInfoAPI.Controllers
     public class PointsOfInterestController : ControllerBase
     {
         private readonly ILogger<PointsOfInterestController> _logger;
+        private readonly IMailService _mailService;
 
-        public PointsOfInterestController(ILogger<PointsOfInterestController> logger)
+        public PointsOfInterestController(ILogger<PointsOfInterestController> logger, IMailService mailService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _mailService = mailService ?? throw new ArgumentNullException(nameof(mailService));
         }
 
         [HttpGet]
         public IActionResult GetPointsOfInterest(int cityId)
         {
+            
             try
             {
                 //throw new Exception("Exception example");
@@ -63,6 +68,19 @@ namespace CityInfoAPI.Controllers
             }
 
             return Ok(pointOfInterest);
+        }
+
+        [Route("testPointsOfInterest")]
+        [HttpGet]
+        public IActionResult GetPointOfInterestTest(int cityId)
+        {
+            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
+            if (city == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(city.PointsOfInterest);
         }
 
         [HttpPost]
@@ -213,6 +231,7 @@ namespace CityInfoAPI.Controllers
             }
 
             city.PointsOfInterest.Remove(pointOfInterestFromStore);
+            _mailService.Send("Point of interest deleted.", $"Point of interest {pointOfInterestFromStore.Name} with id { pointOfInterestFromStore.Id} was deleted.");
 
             return NoContent();
         }
