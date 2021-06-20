@@ -36,7 +36,7 @@ namespace CityInfoAPI
                              Id = 2,
                              Name = "Robben Island",
                              Description = "an island in Table Bay, 6.9 kilometres west of the coast of Bloubergstrand, north of Cape Town, South Africa." 
-                          },
+                          }
                      }
                 },
                 new CityDto()
@@ -57,7 +57,7 @@ namespace CityInfoAPI
                              Id = 4,
                              Name = "Gold Reef City",
                              Description = "an authentic portrayal of a turn-of-the-century mining town hotel located within Africa's largest theme park." 
-                          },
+                          }
                      }
                 },
                 new CityDto()
@@ -78,7 +78,7 @@ namespace CityInfoAPI
                              Id = 6,
                              Name = "The Louvre",
                              Description = "The world's largest museum." 
-                          },
+                          }
                      }
                 }
             };
