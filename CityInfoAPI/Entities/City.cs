@@ -22,6 +22,6 @@ namespace CityInfoAPI.Entities
         public string Description { get; set; }
 
         //always a good idea to initialise this list to an empty collection to avoid null reference issues when trying to manipulate that list when the points of interests haven't been loaded yet
-        public ICollection<PointOfInterest> PointsOfInterest { get; set; }
+        public ICollection<PointOfInterest> PointsOfInterest { get; set; } = new List<PointOfInterest>();
     }
 }
