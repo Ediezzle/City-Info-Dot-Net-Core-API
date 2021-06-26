@@ -137,28 +137,36 @@ namespace CityInfoAPI.Controllers
             }
 
             //check whether the city to which the pointOfInterest is being created exists
-            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-            if (city == null)
+           
+            if (!_cityInfoRepository.CityExists(cityId))
             {
                 return NotFound();
             }
 
+            //code when using in-memory data store (citiesDataStore) 
             //calculate pointOfInterestDto
             //since our data store currently works on a PointOfInterestDto and not PointOfInterestForCreationDto we have to apply mapping
-            var maxPointOfInterestId = CitiesDataStore.Current.Cities.SelectMany(c=>c.PointsOfInterest).Max(p=>p.Id);
-     
-            var finalPointOfInterest = new PointOfInterestDto()
-            {
-                Id = ++maxPointOfInterestId,
-                Name = pointOfInterest.Name,
-                Description = pointOfInterest.Description
-            };
+            //var maxPointOfInterestId = CitiesDataStore.Current.Cities.SelectMany(c=>c.PointsOfInterest).Max(p=>p.Id);
+            //var finalPointOfInterest = new PointOfInterestDto()
+            //{
+            //    Id = ++maxPointOfInterestId,
+            //    Name = pointOfInterest.Name,
+            //    Description = pointOfInterest.Description
+            //};
 
-            city.PointsOfInterest.Add(finalPointOfInterest);
+            var finalPointOfInterest = _mapper.Map<Entities.PointOfInterest
+                >(pointOfInterest);
+
+            _cityInfoRepository.AddPointOfInterestForCity(cityId, finalPointOfInterest);
+
+            _cityInfoRepository.Save();
+
+            var createdPointOfInterestToReturn = _mapper.
+                Map<Models.PointOfInterestDto>(finalPointOfInterest);
 
             //Because the "GetPointOfInterest" route expects two parameters we pass them in using an anonymous type
             //Response body should also contain the newly created pointOfInterest resource
-            return CreatedAtRoute("SinglePointOfInterest", new { cityId, id = finalPointOfInterest.Id}, finalPointOfInterest);
+            return CreatedAtRoute("SinglePointOfInterest", new { cityId, id = createdPointOfInterestToReturn.Id}, createdPointOfInterestToReturn);
         }
 
         [HttpPut("{id}")]
@@ -177,54 +185,107 @@ namespace CityInfoAPI.Controllers
             }
 
             //check whether the city to which the pointOfInterest is being created exists
-            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-            if (city == null)
+
+            if (!_cityInfoRepository.CityExists(cityId))
             {
                 return NotFound();
             }
 
-            //calculate pointOfInterestDto
-            //since our data store currently works on a PointOfInterestDto and not PointOfInterestForCreationDto we have to apply mapping
-            var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id == id);
-            if (pointOfInterestFromStore == null)
+            var pointOfInterestEntity = _cityInfoRepository.
+                GetPointOfInterestForCity(cityId, id);
+            if(pointOfInterestEntity == null)
             {
                 return NotFound();
             }
+
+            _mapper.Map(pointOfInterest, pointOfInterestEntity);
+
+            //won't execute anything in this case but just a good habit to make code consistent, stable and reliable
+            _cityInfoRepository.UpdatePointOfInterestForCity(cityId, pointOfInterestEntity);
+
+            _cityInfoRepository.Save();
 
             //According to Http standards Put should fully update a resource
             //We already have the id coming from the Api. If we didn't and we didn't provide it it would fall back to the default value
-            pointOfInterestFromStore.Name = pointOfInterest.Name;
-            pointOfInterestFromStore.Description = pointOfInterest.Description;
+            //pointOfInterestFromStore.Name = pointOfInterest.Name;
+            //pointOfInterestFromStore.Description = pointOfInterest.Description;
 
             return NoContent();
         }
 
+        //[HttpPatch("{id}")]
+        //public IActionResult PartiallyUpdatePointOfInterest(int cityId, int id, [FromBody] JsonPatchDocument<PointOfInterestForUpdateDto> patchDoc)
+        //{
+        //    var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
+        //    if (city == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id == id);
+        //    if (pointOfInterestFromStore == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    var pointOfInterestToPatch = new PointOfInterestForUpdateDto()
+        //    {
+        //        Name = pointOfInterestFromStore.Name,
+        //        Description = pointOfInterestFromStore.Description
+        //    };
+
+        //    //Pass in ModelState as second argument to validate the input from the client
+        //    patchDoc.ApplyTo(pointOfInterestToPatch, ModelState);
+
+        //    //N.B In this case the input model to be validated will be the JsonApacheDocument , not the pointOfInterestForUpdateDto
+        //    if(!ModelState.IsValid)
+        //    {
+        //        return BadRequest(ModelState);
+        //    }
+
+        //    //Now we validate our pointOfInterestForUpdateDto
+        //    if (pointOfInterestToPatch.Description == pointOfInterestToPatch.Name)
+        //    {
+        //        ModelState.AddModelError("Description", "The provided description should be different from name");
+        //    }
+
+        //    if(!TryValidateModel(pointOfInterestToPatch))
+        //    {
+        //        return BadRequest(ModelState);
+        //    }
+
+        //    pointOfInterestFromStore.Name = pointOfInterestToPatch.Name;
+        //    pointOfInterestFromStore.Description = pointOfInterestToPatch.Description;
+
+        //    return NoContent();
+        //}
+
         [HttpPatch("{id}")]
         public IActionResult PartiallyUpdatePointOfInterest(int cityId, int id, [FromBody] JsonPatchDocument<PointOfInterestForUpdateDto> patchDoc)
         {
-            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-            if (city == null)
+            //Apache operation is on the DTO and not directly on the entity as we shouldn't expose Entity implementation details to the outer-facing layer
+            //Thus we first need to find the entity and map it to a DTO before patching
+          
+            if (!_cityInfoRepository.CityExists(cityId))
             {
                 return NotFound();
             }
 
-            var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id == id);
-            if (pointOfInterestFromStore == null)
+            var pointOfInterestEntity = _cityInfoRepository.
+                GetPointOfInterestForCity(cityId, id);
+            if(pointOfInterestEntity == null)
             {
                 return NotFound();
             }
 
-            var pointOfInterestToPatch = new PointOfInterestForUpdateDto()
-            {
-                Name = pointOfInterestFromStore.Name,
-                Description = pointOfInterestFromStore.Description
-            };
+            var pointOfInterestToPatch = _mapper.
+                Map<PointOfInterestForUpdateDto>(pointOfInterestEntity);
 
             //Pass in ModelState as second argument to validate the input from the client
             patchDoc.ApplyTo(pointOfInterestToPatch, ModelState);
 
             //N.B In this case the input model to be validated will be the JsonApacheDocument , not the pointOfInterestForUpdateDto
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
@@ -235,13 +296,17 @@ namespace CityInfoAPI.Controllers
                 ModelState.AddModelError("Description", "The provided description should be different from name");
             }
 
-            if(!TryValidateModel(pointOfInterestToPatch))
+            if (!TryValidateModel(pointOfInterestToPatch))
             {
                 return BadRequest(ModelState);
             }
 
-            pointOfInterestFromStore.Name = pointOfInterestToPatch.Name;
-            pointOfInterestFromStore.Description = pointOfInterestToPatch.Description;
+            _mapper.Map(pointOfInterestToPatch, pointOfInterestEntity);
+
+            //won't execute anything in this case but just a good habit to make code consistent, stable and reliable, in case another implementation of the repository should be used
+            _cityInfoRepository.UpdatePointOfInterestForCity(cityId, pointOfInterestEntity);
+
+            _cityInfoRepository.Save();
 
             return NoContent();
         }
@@ -249,20 +314,25 @@ namespace CityInfoAPI.Controllers
         [HttpDelete("{id}")]
         public IActionResult DeletePointOfInterest(int cityId, int id)
         {
-            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-            if (city == null)
+            //check if the city exists
+            if (!_cityInfoRepository.CityExists(cityId))
+            {
+                return NotFound();
+            }
+           
+            //check if the point of interest we want to delete exists
+            var pointOfInterestEntity = _cityInfoRepository.
+                GetPointOfInterestForCity(cityId, id);
+            if(pointOfInterestEntity == null)
             {
                 return NotFound();
             }
 
-            var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id == id);
-            if (pointOfInterestFromStore == null)
-            {
-                return NotFound();
-            }
+            _cityInfoRepository.DeletePointOfInterest(pointOfInterestEntity);
 
-            city.PointsOfInterest.Remove(pointOfInterestFromStore);
-            _mailService.Send("Point of interest deleted.", $"Point of interest {pointOfInterestFromStore.Name} with id { pointOfInterestFromStore.Id} was deleted.");
+            _cityInfoRepository.Save();
+
+            _mailService.Send("Point of interest deleted.", $"Point of interest {pointOfInterestEntity.Name} with id { pointOfInterestEntity.Id} was deleted.");
 
             return NoContent();
         }
