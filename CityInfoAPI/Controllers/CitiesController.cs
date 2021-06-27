@@ -33,9 +33,8 @@ namespace CityInfoAPI.Controllers
         {
             var cityEntities = _cityInfoRepository.GetCities();
 
-            var results = new List<CityWithoutPointsOfInterestDto>();
-
             //manual mapping
+            //var results = new List<CityWithoutPointsOfInterestDto>();
             //foreach(var cityEntity in cityEntities)
             //{
             //    results.Add(new CityWithoutPointsOfInterestDto
